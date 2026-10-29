@@ -154,6 +154,9 @@ aside {
   min-width: 0;
 }
 header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   height: 76px;
   background: white;
   border-bottom: 1px solid var(--line);

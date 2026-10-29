@@ -314,3 +314,35 @@ def test_seed_repeatable(db_factory, monkeypatch):
         assert db.scalar(select(func.count()).select_from(CustomerRequest)) == 8
         assert db.scalar(select(func.count()).select_from(SupportTicket)) == 2
         assert db.scalar(select(func.count()).select_from(AIAnalysis)) == 6
+
+
+def test_model_access_error_is_actionable_and_persisted(client):
+    import httpx
+    from openai import PermissionDeniedError
+
+    rid = create(client)["id"]
+
+    class UnavailableModel:
+        model_name = "unavailable-model"
+
+        def analyse(self, request):
+            raise PermissionDeniedError(
+                "private provider details",
+                response=httpx.Response(
+                    403,
+                    request=httpx.Request(
+                        "POST", "https://api.openai.com/v1/responses"
+                    ),
+                ),
+                body={"code": "model_not_found"},
+            )
+
+    app.dependency_overrides[get_analysis_service] = lambda: UnavailableModel()
+    response = client.post(f"/api/v1/requests/{rid}/analyse")
+    assert response.status_code == 502
+    message = response.json()["error"]["message"]
+    assert "model" in message.lower() and "access" in message.lower()
+    assert "private provider details" not in response.text
+    detail = client.get(f"/api/v1/requests/{rid}").json()
+    assert detail["analysis_error"] == message
+    assert detail["ticket"] is None

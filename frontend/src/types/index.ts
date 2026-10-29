@@ -22,6 +22,7 @@ export interface Ticket {
   status: string;
 }
 export interface CustomerRequest {
+  analysis_error?: string | null;
   id: string;
   sender_name: string;
   sender_email: string;

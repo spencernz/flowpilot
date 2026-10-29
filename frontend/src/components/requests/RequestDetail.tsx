@@ -90,15 +90,20 @@ export function RequestDetail({
                 : "Ready to analyse"}
           </span>
         </div>
-        <ErrorNotice error={work.error} />
+        <ErrorNotice
+          error={
+            work.error ||
+            (!busy && request.status === "failed"
+              ? new Error(
+                  request.analysis_error ||
+                    "The last analysis failed. Check the provider settings and retry.",
+                )
+              : null)
+          }
+        />
         {notice && (
           <div className="notice" role="status">
             {notice}
-          </div>
-        )}
-        {request.status === "failed" && (
-          <div className="error">
-            The last analysis failed. Check the provider settings and retry.
           </div>
         )}
         {busy && (

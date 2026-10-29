@@ -116,4 +116,14 @@ describe("human review and approval", () => {
     ).toBeInTheDocument();
     expect(client.approve).not.toHaveBeenCalled();
   });
+  it("shows one actionable error after an analysis retry fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(client.analyse).mockRejectedValue(
+      new Error("Analysis failed. Check provider configuration or try again."),
+    );
+    setup({ ...request, status: "failed", analysis: null });
+    await user.click(screen.getByRole("button", { name: "Analyse with AI" }));
+    await screen.findByRole("alert");
+    expect(screen.getAllByText(/analysis failed/i)).toHaveLength(1);
+  });
 });

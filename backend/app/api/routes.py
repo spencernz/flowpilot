@@ -19,6 +19,7 @@ from app.models.entities import (
 from app.repositories.requests import latest_analysis, ticket_for
 from app.schemas.workflow import Approval, RequestCreate, ResponseEdit
 from app.services.analysis import get_analysis_service
+from app.services.analysis_errors import FAILURE_MESSAGES
 from app.services.workflow import (
     analyse_request,
     approve_request,
@@ -44,10 +45,26 @@ def record(row):
 
 
 def request_record(db, row):
+    analysis_error = None
+    if row.status == RequestStatus.failed:
+        event = db.scalar(
+            select(AuditEvent)
+            .where(
+                AuditEvent.request_id == row.id,
+                AuditEvent.event_type == "ai_analysis_failed",
+            )
+            .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc())
+            .limit(1)
+        )
+        reason = event.details.get("reason") if event else "provider_error"
+        analysis_error = FAILURE_MESSAGES.get(
+            reason, FAILURE_MESSAGES["provider_error"]
+        )
     return {
         **record(row),
         "analysis": record(latest_analysis(db, row.id)),
         "ticket": record(ticket_for(db, row.id)),
+        "analysis_error": analysis_error,
     }
 
 

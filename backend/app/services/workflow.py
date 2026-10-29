@@ -15,6 +15,7 @@ from app.models.entities import (
 )
 from app.repositories.requests import latest_analysis, ticket_for
 from app.schemas.workflow import AnalysisOutput
+from app.services.analysis_errors import FAILURE_MESSAGES, failure_reason
 
 
 def audit(db, request_id, event_type, **details):
@@ -75,16 +76,15 @@ def analyse_request(db, request_id, service):
         audit(db, request_id, "ai_analysis_completed", model=service.model_name)
         db.commit()
         return analysis
-    except Exception:  # noqa: BLE001 - persist a safe, retryable state for any provider failure
+    except Exception as exc:  # noqa: BLE001 - persist a safe, retryable state for any provider failure
         db.rollback()
         request = require_request(db, request_id)
         request.status = RequestStatus.failed
         request.updated_at = now()
-        audit(db, request_id, "ai_analysis_failed", reason="provider_error")
+        reason = failure_reason(exc)
+        audit(db, request_id, "ai_analysis_failed", reason=reason)
         db.commit()
-        raise HTTPException(
-            502, "Analysis failed. Check provider configuration or try again."
-        ) from None
+        raise HTTPException(502, FAILURE_MESSAGES[reason]) from None
 
 
 def approve_request(db, request_id, payload):

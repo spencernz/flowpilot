@@ -1,6 +1,6 @@
 # FlowPilot
 
-An AI-assisted customer support workflow with human review and approval. FlowPilot turns a customer message into validated structured analysis and an editable response. A person reviews the draft and explicitly approves creation of a local support ticket.
+FlowPilot is a proof of concept showing how to combine AI with a human-in-the-loop workflow. FlowPilot turns a customer message into validated structured analysis and an editable response. A person reviews the draft and explicitly approves creation of a local support ticket.
 
 The interface follows [the supplied HTML reference](docs/flowpilot-mockup.html), rebuilt as reusable React components. All operational data comes from FastAPI and the database. There is no authentication, outgoing email or external CRM integration.
 

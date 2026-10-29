@@ -87,8 +87,8 @@ export function Layout() {
         <div className="content">
           <Outlet />
           <footer>
-            FlowPilot · AI operations workspace · Local tickets · Human approval
-            required
+            FlowPilot · A proof of concept combining AI with a human-in-the-loop
+            workflow
           </footer>
         </div>
       </main>

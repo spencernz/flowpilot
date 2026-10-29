@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
+from app.core.config import settings
 from app.db.session import Base, get_db, make_engine
 from app.main import app
 
@@ -16,7 +17,10 @@ def db_factory(tmp_path):
 
 
 @pytest.fixture
-def client(db_factory):
+def client(db_factory, monkeypatch):
+    # Offline tests must not consume credits or depend on the developer .env.
+    monkeypatch.setattr(settings, "ai_provider", "mock")
+
     def override_db():
         with db_factory() as session:
             yield session

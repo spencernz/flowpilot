@@ -1,6 +1,6 @@
 # FlowPilot
 
-A working human-in-the-loop support workflow for a technical interview demonstration. FlowPilot turns a customer message into validated structured analysis and an editable response. A person reviews the draft and explicitly approves creation of a local support ticket.
+An AI-assisted customer support workflow with human review and approval. FlowPilot turns a customer message into validated structured analysis and an editable response. A person reviews the draft and explicitly approves creation of a local support ticket.
 
 The interface follows [the supplied HTML reference](docs/flowpilot-mockup.html), rebuilt as reusable React components. All operational data comes from FastAPI and the database. There is no authentication, outgoing email or external CRM integration.
 
@@ -35,7 +35,7 @@ Alternatively, from `backend/`, use `uv sync --frozen` followed by `uv run alemb
 
 SQLite is created in the backend working directory. Always run backend commands from `backend/`. The root `.env` file is loaded automatically. `npm run dev` proxies `/api` to port 8020, keeping credentials and provider requests on the backend.
 
-## Three-minute interview demo
+## Request processing workflow
 
 1. Open **Request inbox** and select a new request, such as **Forgotten password**. Alternatively, add a synthetic message using **New request**.
 2. Click **Analyse with AI**. The request moves through `processing` to `needs_review`. Classification, priority, entities, intent and response appear. No ticket exists yet.
@@ -64,7 +64,7 @@ AI_TIMEOUT_SECONDS=30
 
 Use an available model that supports Structured Outputs. `OpenAIAnalysisService` uses the SDK's `responses.parse(..., text_format=AnalysisOutput)` mechanism, following the [official structured-output documentation](https://developers.openai.com/api/docs/guides/structured-outputs). It sends only the customer name, subject and message, disables response storage (`store=False`), uses a bounded timeout, and does not retry paid calls automatically. The SDK parses the result into Pydantic and the workflow validates it again before persistence. Refusals, malformed output, timeouts, rate limits and other provider failures leave a retryable `failed` request and a safe audit event.
 
-Mock mode is an explicit deterministic alternative; OpenAI failures are **not silently replaced** with fabricated successful analyses. Switch to `AI_PROVIDER=mock` and restart when an offline demonstration is needed. The mock uses simple keyword rules and only extracts invoice and amount fields; it is not a language model.
+Mock mode is an explicit deterministic alternative; OpenAI failures are **not silently replaced** with fabricated successful analyses. Switch to `AI_PROVIDER=mock` and restart for offline use. The mock uses simple keyword rules and only extracts invoice and amount fields; it is not a language model.
 
 Entities use a fixed Pydantic object with nullable fields so OpenAI's strict JSON Schema disallows additional properties. Missing facts are `null`. Confidence remains `null`: the application does not present an LLM self-rating as a calibrated probability.
 

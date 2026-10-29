@@ -10,7 +10,7 @@ export function Settings() {
       <PageHeading
         eyebrow="CONFIGURATION"
         title="Workspace settings"
-        description="Connection details and safeguards for this demonstration."
+        description="Connection details and safeguards for your workspace."
       />
       <section className="panel settings-panel">
         <div className="panel-head">

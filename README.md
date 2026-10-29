@@ -45,6 +45,14 @@ SQLite is created in the backend working directory. Always run backend commands 
 
 Seed data contains nine fictional customers, six mock analyses and two approved sample tickets. Seeding is repeatable: stable UUIDs prevent duplicates, and existing work is preserved. Seed analyses are always labelled `mock-rules-v1`, even if the active provider is OpenAI.
 
+## Synthetic request generator
+
+**New request** opens a modal with **Random**, **Standard** and **RAG** scenarios. Choose a scenario, click **Generate Request**, and edit the customer name, example email address, subject or message before creating it. **Regenerate** selects another template; **Cancel** discards the preview.
+
+Generation is entirely local and makes no LLM calls. Standard examples cover billing errors, login problems, sales enquiries and technical issues. RAG examples ask questions supported by the three seeded documents: refund eligibility inside or outside the standard window, billing review procedures, critical outage escalation and normal support response times. Names, references, amounts and wording vary. All generated email addresses use `example.com`.
+
+**Create Request** validates the edited preview and calls the existing request creation API. The modal stays open on failure and retains edits for retry; controls are locked while saving to prevent repeated submissions. After success, the inbox clears filters and selects the new request. Analysis and ticket approval remain separate manual actions.
+
 ## OpenAI and mock modes
 
 Default configuration works without an API key or paid service:

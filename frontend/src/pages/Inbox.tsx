@@ -225,7 +225,15 @@ export function Inbox() {
       {showNew && (
         <NewRequest
           close={() => setShowNew(false)}
-          created={(id) => setParams({ request: id })}
+          created={(id) => {
+            setSearch("");
+            setDebounced("");
+            setStatus("");
+            setPriority("");
+            setCategory("");
+            setPage(1);
+            setParams({ request: id });
+          }}
         />
       )}
     </>

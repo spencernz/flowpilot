@@ -1519,3 +1519,87 @@ footer {
     flex-direction: column;
   }
 }
+
+.request-generator-modal {
+  width: 640px;
+}
+.generator-controls {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--blue-tint);
+}
+.generator-controls > p:first-child {
+  margin: 0 0 14px;
+  line-height: 1.7;
+}
+.generator-controls > label {
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  margin-bottom: 7px;
+}
+.generator-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.generator-row select {
+  flex: 1;
+  font-size: 13px;
+  padding: 10px;
+  background: white;
+}
+.generator-row button {
+  white-space: nowrap;
+  font-size: 12px;
+}
+.generator-hint {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.preview-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.preview-heading strong {
+  font-size: 13px;
+}
+.preview-heading .subheading {
+  margin-top: 4px;
+}
+.request-preview-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.generator-empty {
+  padding: 20px 8px;
+  text-align: center;
+  color: var(--blue-ink);
+}
+.generator-empty svg {
+  margin: auto;
+}
+.generator-empty p {
+  font-size: 12px;
+  margin: 12px 0;
+}
+@media (max-width: 600px) {
+  .generator-controls {
+    padding: 16px;
+  }
+  .generator-row {
+    flex-wrap: wrap;
+  }
+  .generator-row select {
+    flex-basis: 100%;
+  }
+  .generator-row button {
+    width: 100%;
+  }
+}

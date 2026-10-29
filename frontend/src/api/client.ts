@@ -6,6 +6,10 @@ import type {
   Config,
   Stats,
   AuditEvent,
+  KnowledgeDocument,
+  KnowledgeList,
+  KnowledgeSearch,
+  DocumentInput,
 } from "../types";
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response;
@@ -28,6 +32,21 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   return data as T;
 }
 export const client = {
+  knowledge: () => api<KnowledgeList>("/knowledge"),
+  createDocument: (data: DocumentInput) =>
+    api<KnowledgeDocument>("/knowledge", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateDocument: (id: string, data: DocumentInput) =>
+    api<KnowledgeDocument>(`/knowledge/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  reindexDocument: (id: string) =>
+    api<KnowledgeDocument>(`/knowledge/${id}/reindex`, { method: "POST" }),
+  searchKnowledge: (q: string) =>
+    api<KnowledgeSearch>(`/knowledge/search?${new URLSearchParams({ q })}`),
   requests: (query: string) =>
     api<Paginated<CustomerRequest>>(`/requests?${query}`),
   request: (id: string) => api<CustomerRequest>(`/requests/${id}`),

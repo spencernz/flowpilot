@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Activity,
+  BookOpen,
   ArrowUpRight,
   Inbox,
   LayoutDashboard,
@@ -13,6 +14,7 @@ import { client } from "../../api/client";
 const links = [
   { path: "/", title: "Overview", icon: LayoutDashboard },
   { path: "/inbox", title: "Request inbox", icon: Inbox },
+  { path: "/knowledge", title: "Knowledge base", icon: BookOpen },
   { path: "/activity", title: "Activity log", icon: Activity },
   { path: "/settings", title: "Settings", icon: Settings },
 ];

@@ -2,7 +2,18 @@ import enum
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -73,6 +84,17 @@ class AIAnalysis(Base):
     customer_intent: Mapped[str] = mapped_column(Text)
     extracted_entities: Mapped[dict] = mapped_column(JSON)
     suggested_response: Mapped[str] = mapped_column(Text)
+    retrieved_sources: Mapped[list] = mapped_column(
+        JSON, default=list, server_default="[]"
+    )
+    citations: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
+    context_status: Mapped[str] = mapped_column(
+        String(32), default="not_retrieved", server_default="not_retrieved"
+    )
+    retrieval_mode: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    human_verification_required: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true"
+    )
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     model_name: Mapped[str] = mapped_column(String(120))
     processing_duration_ms: Mapped[int] = mapped_column(Integer)
@@ -110,3 +132,30 @@ class AuditEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now, index=True
     )
+
+
+class KnowledgeDocument(Base):
+    __tablename__ = "knowledge_documents"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    title: Mapped[str] = mapped_column(String(200))
+    content: Mapped[str] = mapped_column(Text)
+    format: Mapped[str] = mapped_column(String(16), default="markdown")
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class KnowledgeChunk(Base):
+    __tablename__ = "knowledge_chunks"
+    __table_args__ = (
+        UniqueConstraint("document_id", "embedding_model", "chunk_index"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_documents.id"), index=True
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[list] = mapped_column(JSON)
+    embedding_model: Mapped[str] = mapped_column(String(160), index=True)
+    document_revision: Mapped[int] = mapped_column(Integer)

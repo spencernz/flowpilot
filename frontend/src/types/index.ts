@@ -3,7 +3,52 @@ export type Status =
 export type Category =
   "billing" | "technical_support" | "sales" | "general" | "other";
 export type Priority = "low" | "medium" | "high" | "urgent";
+export interface KnowledgeSource {
+  citation_id: string;
+  chunk_id: string;
+  document_id: string;
+  title: string;
+  excerpt: string;
+  similarity: number;
+  document_revision: number;
+  embedding_model: string;
+}
+export interface KnowledgeDocument {
+  id: string;
+  title: string;
+  content: string;
+  format: "text" | "markdown";
+  revision: number;
+  created_at: string;
+  updated_at: string;
+  chunk_count: number;
+  indexed_models: string[];
+  active_embedding_model: string;
+}
+export interface DocumentInput {
+  title: string;
+  content: string;
+  format: "text" | "markdown";
+}
+export interface KnowledgeList {
+  items: KnowledgeDocument[];
+  mode: string;
+  embedding_model: string;
+}
+export interface KnowledgeSearch {
+  items: KnowledgeSource[];
+  context_found: boolean;
+  context_status?: "found" | "no_relevant_sources" | "index_unavailable";
+  mode: string;
+  embedding_model: string;
+}
 export interface Analysis {
+  retrieved_sources?: KnowledgeSource[];
+  citations?: string[];
+  context_status?:
+    "found" | "no_relevant_sources" | "not_retrieved" | "index_unavailable";
+  retrieval_mode?: string | null;
+  human_verification_required?: boolean;
   id: string;
   category: Category;
   priority: Priority;

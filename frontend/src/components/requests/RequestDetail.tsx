@@ -12,6 +12,7 @@ import {
 import { client } from "../../api/client";
 import type { CustomerRequest } from "../../types";
 import { Badge, date, ErrorNotice, label } from "../ui/Common";
+import { SourcesUsed } from "./SourcesUsed";
 import { useRefresh } from "../../hooks/useRefresh";
 export function RequestDetail({
   request,
@@ -90,6 +91,24 @@ export function RequestDetail({
                 : "Ready to analyse"}
           </span>
         </div>
+        {analysis && request.status === "needs_review" && (
+          <div className="reanalyse-action">
+            <button
+              className="secondary small"
+              disabled={busy || dirty}
+              onClick={() => work.mutate("analyse")}
+              title={
+                dirty
+                  ? "Save the draft before re-analysing"
+                  : "Generate a fresh analysis using the current knowledge index"
+              }
+            >
+              <Sparkles size={13} />
+              Re-analyse with AI
+            </button>
+            <span>Creates a new draft using the current knowledge index.</span>
+          </div>
+        )}
         <ErrorNotice
           error={
             work.error ||
@@ -144,6 +163,7 @@ export function RequestDetail({
                 validated
               </div>
             </div>
+            <SourcesUsed analysis={analysis} />
             <div className="section-title">
               <label htmlFor="draft">Suggested response</label>
               <span> · review and edit before approval</span>

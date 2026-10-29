@@ -43,7 +43,7 @@ SQLite is created in the backend working directory. Always run backend commands 
 4. Approve the request. A local ticket appears with the approved response and a persisted timestamp. Repeat calls return the same ticket.
 5. Open **Activity log** to show the received, analysis, response-edit and approval events. The simple overview reflects stored data.
 
-Seed data contains eight fictional customers, six mock analyses and two approved sample tickets. Seeding is repeatable: stable UUIDs prevent duplicates, and existing work is preserved. Seed analyses are always labelled `mock-rules-v1`, even if the active provider is OpenAI.
+Seed data contains nine fictional customers, six mock analyses and two approved sample tickets. Seeding is repeatable: stable UUIDs prevent duplicates, and existing work is preserved. Seed analyses are always labelled `mock-rules-v1`, even if the active provider is OpenAI.
 
 ## OpenAI and mock modes
 
@@ -78,7 +78,7 @@ React + TypeScript + Vite
         ▼
 FastAPI routes + input validation
         │
-Workflow service ─── Mock / OpenAI analysis service
+Workflow service ─── Knowledge retrieval ─── Mock / OpenAI analysis service
         │                  │
 SQLAlchemy 2        Pydantic structured output
         │
@@ -162,3 +162,83 @@ This is a local proof of concept, not production-ready. It intentionally omits a
 Synchronous analysis occupies a request worker until completion. A crash can leave processing visible for up to the five-minute lease. The SDK's transport timeout is bounded per operation rather than a durable job deadline. Requests and audit entries are retained locally without a retention policy. Search uses SQL LIKE, sufficient for demo scale. The basic overview reads the stored dataset rather than implementing analytics infrastructure.
 
 Next steps would be authenticated reviewer identity, access control and tenancy, retention/redaction policies, provider evaluation and prompt versioning, PostgreSQL integration tests, durable job processing, and an independently approved CRM integration.
+
+
+## Company knowledge and retrieval-augmented generation (RAG)
+
+The Knowledge Base extends the existing analysis workflow. It does not create tickets, send messages, or bypass review.
+
+```text
+Text / Markdown → overlapping chunks → embeddings → SQLite JSON vectors
+                                              ↑
+Customer subject + message → query embedding → cosine ranking / threshold
+                                              ↓
+                              up to 3 relevant source excerpts
+                                              ↓
+                       analysis model → validated draft with [S1] citations
+                                              ↓
+                       saved source snapshots → human review → local ticket
+```
+
+Open **Knowledge base** in the sidebar to read documents, create a plain-text or Markdown document, edit and automatically re-index its content, regenerate an index, or test retrieval. **Create a sample document** pre-fills a fictional refund policy for review before saving. Markdown is displayed as source text rather than interpreted HTML.
+
+Run `alembic upgrade head` and `python -m app.seed` from `backend/` when updating an existing installation. Seeding adds **Refund Policy**, **Billing Guidelines**, and **Technical Support SLA** using stable IDs and an explicitly labelled mock index. It preserves existing documents, customer requests, analyses, tickets and audits. To use those policies in OpenAI mode, click **Re-index document** on each document. Real indexing sends the document title and content to OpenAI's embeddings API; the API key stays on the backend. The application then embeds the customer request when searching the matching real index.
+
+Document edits generate and validate new embeddings before writing. Content, chunks and model metadata are replaced transactionally; an embedding failure preserves the previous document and index. A content edit invalidates all old embedding spaces for that document. Re-indexing unchanged content replaces only the active model's chunks. Revision checks reject concurrent conflicting writes, and a unique document/model/chunk-index constraint prevents duplicate chunks. Documents store creation and update timestamps.
+
+Each embedding space is identified by provider, model/version, and vector dimensions. Real mode uses the SDK's `embeddings.create` with `text-embedding-3-small` by default and 512 dimensions. It requires an embedding-capable API model **in addition to** access to the text analysis model. Changing `EMBEDDING_MODEL` requires re-indexing. Unsupported models, invalid vectors and unavailable providers return safe errors; they never silently substitute mock vectors or successful empty results.
+
+Retrieval computes cosine similarity in process over matching SQLite vectors, filters by the configured threshold, and takes at most three chunks. With no matching index or no sufficiently relevant result, it returns no company context. If an existing matching index has a provider failure, analysis is marked `failed` through the original workflow. No vector database, external orchestration or new infrastructure is used.
+
+### Retrieval configuration
+
+Add these settings to the root `.env` as needed and restart the backend:
+
+```dotenv
+EMBEDDING_MODEL=text-embedding-3-small
+RAG_CHUNK_CHARS=1200
+RAG_CHUNK_OVERLAP=200
+RAG_MIN_SIMILARITY=0.35
+RAG_MOCK_MIN_SIMILARITY=0.15
+```
+
+Chunks are deterministic overlapping character windows, preserving the source text and Markdown. Overlap must be smaller than the chunk size. Documents are limited to 100,000 characters and 300 chunks; reduce the input or increase chunk size if needed. The embedding provider batches up to 32 chunks per call. Long query input is limited to its first 1,800 characters to bound embedding input size. Character windows are intentionally simple; token-aware and section-aware chunking would be future improvements.
+
+Cosine similarity is a relevance score, **not a probability, confidence estimate, or guarantee of factual accuracy**. Thresholds are configurable heuristics and should be evaluated against representative company questions. A low threshold can retrieve tangential passages; a high threshold can miss useful sources.
+
+### Mock versus real retrieval
+
+`AI_PROVIDER=mock` selects deterministic lexical feature hashing with limited word normalization and 2,048 dimensions. It supports a fully offline demonstration without an API key. Its index identity starts with `mock:`, and the UI labels it **Deterministic mock retrieval**. It is keyword similarity, not real semantic understanding; paraphrases may be missed. Real mode uses OpenAI embeddings and indexes with an `openai:` identity. Mock and real vectors are never compared, even if their dimensions happen to match. Seeding does not spend API credits or automatically create real embeddings.
+
+### Grounding, citations and human review
+
+Analysis keeps all existing fields and adds:
+
+- `retrieved_sources`: immutable snapshots containing the chunk ID, document ID and title, excerpt, revision, similarity and embedding model. These remain readable after the original document is edited or re-indexed.
+- `citations`: the identifiers actually referenced inline in the saved suggested response, such as `S1` for `[S1]`.
+- `context_status`: `found`, `no_relevant_sources`, `index_unavailable` when documents lack the active provider index, or `not_retrieved` for older analyses.
+- `retrieval_mode`: the embedding-space identity used for retrieval.
+- `human_verification_required`: true when no source is cited or the model flags incomplete support. This flag never disables mandatory human approval.
+
+Retrieved excerpts are explicitly labelled **untrusted data** in the model input. Instructions require citations for policy claims and prohibit obeying document instructions, inventing policies, deciding eligibility or claiming external actions were performed. The backend rejects citations to non-retrieved identifiers and validates that the declared citation list matches inline references. It appends an explicit human-verification warning when no relevant company context is found. Editing a response recalculates its citation references and rejects unknown identifiers.
+
+**Sources Used** displays saved excerpts, scores and citation identifiers, and distinguishes cited sources from other retrieved candidates. It warns if there is no relevant context or the saved draft is not fully supported. Use **Re-analyse with AI** on an uncompleted request to create a fresh analysis from the current index; save unsaved response edits first. Completed tickets retain their original approved analysis and response.
+
+Citation validation proves that a referenced passage was retrieved, not that every claim is entailed by it. A model may still misread a passage, omit a necessary citation, overstate a policy, or follow malicious text despite instructions. Human edits can also introduce unsupported claims. The warning and mandatory reviewer remain essential. The three seeded policies are fictional demonstration material, not actual business policies or eligibility decisions.
+
+### Knowledge API
+
+```text
+GET   /api/v1/knowledge
+POST  /api/v1/knowledge
+PATCH /api/v1/knowledge/{id}          (edit and automatically re-index)
+POST  /api/v1/knowledge/{id}/reindex
+GET   /api/v1/knowledge/search?q=subscription%20refund
+```
+
+Create/update accepts JSON with `title`, `content`, and `format` (`text` or `markdown`). Search returns source excerpts and scores plus `context_found`, `mode` and `embedding_model`. The document list returns readable content, the active embedding identity, matching chunk counts, and available index identities. The original request, analysis, approval and ticket endpoints keep their contracts, with additive source fields on analyses.
+
+Tests cover overlap and input limits, ingestion, cosine ranking and top-three retrieval, no relevant results, provider isolation, invalid/unavailable embeddings, atomic failed updates, duplicate-free re-indexing, persistent source attribution after edits, fabricated citations, mock operation without a key, the OpenAI embedding/prompt contract, and preservation of human approval and idempotent tickets. Frontend tests verify citation labels, relevance scores, mock labels and unsupported-context warnings alongside the existing approval tests.
+
+
+To demonstrate a request outside the fictional refund window, open **Refund request — subscription purchased 45 days ago** from Daniel Morgan. It starts unanalysed. After indexing the Refund Policy for the active provider, analyse the message: the draft should cite the 14-day policy and explain that 45 days is outside the standard window. This is a suggested policy interpretation requiring human verification, not an automatic eligibility decision or refund action.

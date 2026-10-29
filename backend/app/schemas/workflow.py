@@ -33,6 +33,8 @@ class AnalysisOutput(BaseModel):
     customer_intent: Nonempty = Field(max_length=2000)
     extracted_entities: Entities
     suggested_response: Nonempty = Field(max_length=10000)
+    citations: list[str] = Field(default_factory=list, max_length=3)
+    human_verification_required: bool = True
 
 
 class ResponseEdit(BaseModel):

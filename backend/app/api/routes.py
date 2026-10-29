@@ -20,6 +20,7 @@ from app.repositories.requests import latest_analysis, ticket_for
 from app.schemas.workflow import Approval, RequestCreate, ResponseEdit
 from app.services.analysis import get_analysis_service
 from app.services.analysis_errors import FAILURE_MESSAGES
+from app.services.grounding import citation_ids
 from app.services.workflow import (
     analyse_request,
     approve_request,
@@ -88,6 +89,12 @@ def config():
         if settings.database_url.startswith("sqlite")
         else "PostgreSQL",
         "timeout_seconds": settings.ai_timeout_seconds,
+        "embedding_model": settings.embedding_model
+        if settings.ai_provider == "openai"
+        else "mock:lexical-hash-v1:2048",
+        "retrieval_threshold": settings.rag_min_similarity
+        if settings.ai_provider == "openai"
+        else settings.rag_mock_min_similarity,
     }
 
 
@@ -191,6 +198,17 @@ def edit_analysis(analysis_id: UUID, payload: ResponseEdit, db: Session = DB):
             409, "Only the latest analysis awaiting review can be edited"
         )
     if analysis.suggested_response != payload.suggested_response:
+        try:
+            citations = citation_ids(
+                payload.suggested_response, analysis.retrieved_sources
+            )
+        except ValueError as exc:
+            db.rollback()
+            raise HTTPException(422, str(exc)) from None
+        analysis.citations = citations
+        analysis.human_verification_required = (
+            analysis.human_verification_required or not bool(citations)
+        )
         analysis.suggested_response = payload.suggested_response
         audit(
             db,

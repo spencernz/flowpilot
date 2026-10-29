@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import settings
 from app.models.entities import (
     AIAnalysis,
     AuditEvent,
@@ -16,6 +17,9 @@ from app.models.entities import (
 from app.repositories.requests import latest_analysis, ticket_for
 from app.schemas.workflow import AnalysisOutput
 from app.services.analysis_errors import FAILURE_MESSAGES, failure_reason
+from app.services.embeddings import MockEmbeddingService, OpenAIEmbeddingService
+from app.services.grounding import validate_grounding
+from app.services.knowledge import context_status, retrieve
 
 
 def audit(db, request_id, event_type, **details):
@@ -62,10 +66,21 @@ def analyse_request(db, request_id, service):
     request = require_request(db, request_id)
     started = perf_counter()
     try:
-        output = AnalysisOutput.model_validate(service.analyse(request))
+        mode = getattr(service, "retrieval_mode", settings.ai_provider)
+        provider = (
+            MockEmbeddingService() if mode == "mock" else OpenAIEmbeddingService()
+        )
+        sources = retrieve(db, f"{request.subject}\n{request.body}", provider)
+        output = AnalysisOutput.model_validate(
+            service.analyse(request, sources=sources)
+        )
+        output = validate_grounding(output, sources)
         analysis = AIAnalysis(
             request_id=request_id,
             **output.model_dump(),
+            retrieved_sources=[source.model_dump() for source in sources],
+            context_status=context_status(db, provider, sources),
+            retrieval_mode=provider.identity,
             confidence=None,
             model_name=service.model_name,
             processing_duration_ms=max(1, round((perf_counter() - started) * 1000)),

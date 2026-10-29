@@ -10,7 +10,10 @@ from openai import (
     RateLimitError,
 )
 
+from app.services.embeddings import EmbeddingError
+
 FAILURE_MESSAGES = {
+    "embedding_error": "Company knowledge retrieval failed because embeddings are unavailable or invalid. Check the embedding provider and model configuration; no ticket was created.",
     "model_unavailable": "The configured OpenAI model is unavailable or your project does not have access. Choose an accessible OPENAI_MODEL and restart the backend.",
     "authentication_error": "OpenAI rejected the API key. Check the backend OPENAI_API_KEY and restart the backend.",
     "quota_exceeded": "OpenAI API quota is exhausted. Check your project billing and usage limits before retrying.",
@@ -24,6 +27,8 @@ FAILURE_MESSAGES = {
 
 
 def failure_reason(exc: Exception) -> str:
+    if isinstance(exc, EmbeddingError):
+        return "embedding_error"
     if getattr(exc, "code", None) == "model_not_found" or isinstance(
         exc, NotFoundError
     ):

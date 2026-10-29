@@ -179,7 +179,7 @@ def test_failure_is_recorded_and_retryable(client):
     class Broken:
         model_name = "broken"
 
-        def analyse(self, request):
+        def analyse(self, request, *, sources=None):
             raise RuntimeError("secret-provider-error")
 
     app.dependency_overrides[get_analysis_service] = lambda: Broken()
@@ -201,7 +201,7 @@ def test_invalid_provider_output_rejected(client):
     class Invalid:
         model_name = "malformed"
 
-        def analyse(self, request):
+        def analyse(self, request, *, sources=None):
             return {"category": "not-real"}
 
     app.dependency_overrides[get_analysis_service] = lambda: Invalid()
@@ -311,7 +311,7 @@ def test_seed_repeatable(db_factory, monkeypatch):
     seed_module.seed()
     seed_module.seed()
     with db_factory() as db:
-        assert db.scalar(select(func.count()).select_from(CustomerRequest)) == 8
+        assert db.scalar(select(func.count()).select_from(CustomerRequest)) == 9
         assert db.scalar(select(func.count()).select_from(SupportTicket)) == 2
         assert db.scalar(select(func.count()).select_from(AIAnalysis)) == 6
 
@@ -325,7 +325,7 @@ def test_model_access_error_is_actionable_and_persisted(client):
     class UnavailableModel:
         model_name = "unavailable-model"
 
-        def analyse(self, request):
+        def analyse(self, request, *, sources=None):
             raise PermissionDeniedError(
                 "private provider details",
                 response=httpx.Response(

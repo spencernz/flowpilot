@@ -4,6 +4,7 @@ from datetime import timedelta
 from uuid import NAMESPACE_URL, uuid5
 
 from app.db.session import SessionLocal
+from app.knowledge_seed import seed_knowledge
 from app.models.entities import CustomerRequest, now
 from app.schemas.workflow import Approval
 from app.services.analysis import MockAnalysisService
@@ -50,11 +51,17 @@ SAMPLES = [
         "Account access issue",
         "I cannot log in after a password reset. I need access before the dispatch run.",
     ),
+    (
+        "Daniel Morgan",
+        "Refund request — subscription purchased 45 days ago",
+        "Hi team, I purchased my subscription 45 days ago and would like a refund because I no longer need it. The payment amount was correct and the service is working normally. Can you confirm whether I qualify for a refund under your standard refund policy? My receipt reference is ORD-DEMO-2045. Thanks, Daniel.",
+    ),
 ]
 
 
 def seed():
     with SessionLocal() as db:
+        seed_knowledge(db)
         for i, (name, subject, body) in enumerate(SAMPLES):
             request_id = str(uuid5(NAMESPACE_URL, f"flowpilot-demo/{i}"))
             if db.get(CustomerRequest, request_id):
@@ -80,7 +87,7 @@ def seed():
                         db, row.id, Approval(approved=True, analysis_id=analysis.id)
                     )
     print(
-        "Synthetic demo data ready (8 requests; rerunning preserves existing records)."
+        "Synthetic data ready (9 requests and 3 knowledge documents; existing records preserved)."
     )
 
 
